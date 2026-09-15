@@ -1,6 +1,7 @@
 package com.example.chess
 
 import kotlin.random.Random
+import kotlin.math.max
 
 fun getValidMoves(pos: Position, piece: ChessPiece, board: Board): List<Position> {
     val moves = mutableListOf<Position>()
@@ -85,6 +86,23 @@ fun getVisibleSquares(color: PieceColor, board: Board): Set<Position> {
     return visible
 }
 
+// Проверка: Жив ли еще король конкретного цвета
+fun isKingAlive(color: PieceColor, board: Board): Boolean {
+    return board.values.any { it.type == PieceType.KING && it.color == color }
+}
+
+// Оценка ценности фигуры для сложного ИИ
+fun getPieceValue(type: PieceType): Int {
+    return when (type) {
+        PieceType.PAWN -> 10
+        PieceType.KNIGHT -> 30
+        PieceType.BISHOP -> 30
+        PieceType.ROOK -> 50
+        PieceType.QUEEN -> 90
+        PieceType.KING -> 9000
+    }
+}
+
 fun makeBotMove(board: Board, difficulty: BotDifficulty): Board {
     val botColor = PieceColor.BLACK
     val visibleSquares = getVisibleSquares(botColor, board)
@@ -100,20 +118,83 @@ fun makeBotMove(board: Board, difficulty: BotDifficulty): Board {
 
     if (allValidMoves.isEmpty()) return board
 
-    val selectedMove = if (difficulty == BotDifficulty.MEDIUM) {
-        val captureMoves = allValidMoves.filter { (_, target) ->
-            val targetPiece = board[target]
-            targetPiece != null && targetPiece.color == PieceColor.WHITE && visibleSquares.contains(target)
+    val selectedMove = when (difficulty) {
+        BotDifficulty.EASY -> allValidMoves[Random.nextInt(allValidMoves.size)]
+        
+        BotDifficulty.MEDIUM -> {
+            val captureMoves = allValidMoves.filter { (_, target) ->
+                val targetPiece = board[target]
+                targetPiece != null && targetPiece.color == PieceColor.WHITE && visibleSquares.contains(target)
+            }
+            if (captureMoves.isNotEmpty()) captureMoves[Random.nextInt(captureMoves.size)] else allValidMoves[Random.nextInt(allValidMoves.size)]
         }
-        if (captureMoves.isNotEmpty()) captureMoves[Random.nextInt(captureMoves.size)] else allValidMoves[Random.nextInt(allValidMoves.size)]
-    } else {
-        allValidMoves[Random.nextInt(allValidMoves.size)]
+        
+        BotDifficulty.HARD -> {
+            // СЛОЖНЫЙ РЕЖИМ: Оценка позиции на основе видимых данных
+            var bestScore = -999999
+            val bestMoves = mutableListOf<Pair<Position, Position>>()
+            
+            // Вычисляем клетки, которые игрок держит под ударом (из тех, что бот видит)
+            val enemyVisiblePieces = board.filter { it.value.color == PieceColor.WHITE && visibleSquares.contains(it.key) }
+            val squaresUnderAttackByEnemy = mutableSetOf<Position>()
+            for ((ePos, ePiece) in enemyVisiblePieces) {
+                squaresUnderAttackByEnemy.addAll(getValidMoves(ePos, ePiece, board))
+            }
+
+            for (move in allValidMoves) {
+                val start = move.first
+                val target = move.second
+                val movingPiece = board[start] ?: continue
+                val targetPiece = board[target]
+                
+                var score = 0
+                
+                // 1. Приоритет №1: Если видим короля игрока — немедленно атакуем и побеждаем!
+                if (targetPiece != null && targetPiece.type == PieceType.KING) {
+                    score += 100000
+                }
+                
+                // 2. Ценность взятия обычной фигуры
+                if (targetPiece != null && visibleSquares.contains(target)) {
+                    score += getPieceValue(targetPiece.type) * 2
+                }
+                
+                // 3. Защита: Если наша фигура стояла под боем врага, увод её из-под удара дает бонус
+                if (squaresUnderAttackByEnemy.contains(start)) {
+                    score += getPieceValue(movingPiece.type)
+                }
+                
+                // 4. Опасность: Если мы ходим на клетку под ударом врага, вычитаем ценность нашей фигуры
+                if (squaresUnderAttackByEnemy.contains(target)) {
+                    score -= getPieceValue(movingPiece.type)
+                }
+                
+                // 5. Движение пешек к превращению
+                if (movingPiece.type == PieceType.PAWN && target.row == 7) {
+                    score += 80 // Бонус за скорое превращение в Ферзя
+                }
+
+                if (score > bestScore) {
+                    bestScore = score
+                    bestMoves.clear()
+                    bestMoves.add(move)
+                } else if (score == bestScore) {
+                    bestMoves.add(move)
+                }
+            }
+            if (bestMoves.isNotEmpty()) bestMoves[Random.nextInt(bestMoves.size)] else allValidMoves[Random.nextInt(allValidMoves.size)]
+        }
     }
 
     val newBoard = board.toMutableMap()
     val pieceToMove = newBoard[selectedMove.first]
     if (pieceToMove != null) {
-        newBoard[selectedMove.second] = pieceToMove
+        // Логика авто-превращения пешки бота в Ферзя на последней горизонтали
+        if (pieceToMove.type == PieceType.PAWN && selectedMove.second.row == 7) {
+            newBoard[selectedMove.second] = ChessPiece(PieceType.QUEEN, botColor)
+        } else {
+            newBoard[selectedMove.second] = pieceToMove
+        }
         newBoard.remove(selectedMove.first)
     }
     return newBoard
