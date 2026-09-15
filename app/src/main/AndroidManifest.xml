@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://google.com">
+<manifest xmlns:android="http://android.com">
+
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
         android:label="Fog of War Chess"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:supportsRtl="true">
+        
         <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:theme="@android:style/Theme.Material.NoActionBar">
+            android:name="com.example.chess.MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
     </application>
+
 </manifest>
