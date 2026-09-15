@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://android.com">
+<manifest xmlns:a="http://android.com">
 
     <application
-        android:allowBackup="true"
-        android:label="Fog of War Chess"
-        android:supportsRtl="true">
+        a:allowBackup="true"
+        a:label="Fog of War Chess"
+        a:supportsRtl="true">
         
         <activity
-            android:name="com.example.chess.MainActivity"
-            android:exported="true">
+            a:name="com.example.chess.MainActivity"
+            a:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action a:name="android.intent.action.MAIN" />
+                <category a:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         
