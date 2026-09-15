@@ -31,9 +31,10 @@ android {
     }
     buildFeatures { compose = true }
     composeOptions { 
-        // Эта версия идеально подходит под настройки сервера
-        kotlinCompilerExtensionVersion = "1.5.8" 
+        // Меняем значение на 1.5.14 — это идеальная пара для Kotlin 1.9.24
+        kotlinCompilerExtensionVersion = "1.5.14" 
     }
+
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
 
