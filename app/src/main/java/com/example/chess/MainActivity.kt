@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.abs
 
 // --- МОДЕЛЬ ДАННЫХ ---
 enum class PieceColor { WHITE, BLACK }
@@ -116,7 +115,6 @@ fun getValidMoves(pos: Position, piece: ChessPiece, board: Board): List<Position
                     moves.add(f2)
                 }
             }
-            // Атаки пешки
             for (dc in listOf(-1, 1)) {
                 val target = Position(row + direction, col + dc)
                 if (target.row in 0..7 && target.col in 0..7) {
@@ -217,7 +215,6 @@ fun GameScreen() {
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Шахматная доска
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -234,13 +231,12 @@ fun GameScreen() {
                         val isSelected = selectedPosition == currentPos
                         val isPossibleTarget = possibleMoves.contains(currentPos)
 
-                        // Определение цвета клетки доски
                         val baseColor = if (!isVisible) {
-                            Color(0xFF222222) // Туман войны
+                            Color(0xFF222222)
                         } else if ((row + col) % 2 == 0) {
-                            Color(0xFFEEEEEE) // Светлая клетка
+                            Color(0xFFEEEEEE)
                         } else {
-                            Color(0xFF769656) // Темная клетка
+                            Color(0xFF769656)
                         }
 
                         val cellColor = when {
@@ -256,3 +252,49 @@ fun GameScreen() {
                                 .fillMaxHeight()
                                 .background(cellColor)
                                 .clickable {
+                                    if (isPossibleTarget && selectedPosition != null) {
+                                        val newBoard = board.toMutableMap()
+                                        newBoard[currentPos] = board[selectedPosition!!]!!
+                                        newBoard.remove(selectedPosition!!)
+                                        board = newBoard
+                                        selectedPosition = null
+                                        turn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE
+                                    } else if (piece != null && piece.color == turn) {
+                                        selectedPosition = currentPos
+                                    } else {
+                                        selectedPosition = null
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (piece != null) {
+                                Text(
+                                    text = piece.getSymbol(),
+                                    fontSize = 32.sp,
+                                    color = if (piece.color == PieceColor.WHITE) Color.White else Color.Black
+                                )
+                            } else if (isPossibleTarget && isVisible) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(Color(0x44000000), CircleShape)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Button(
+            onClick = {
+                board = createInitialBoard()
+                turn = PieceColor.WHITE
+                selectedPosition = null
+            },
+            modifier = Modifier.padding(top = 32.dp)
+        ) {
+            Text("Начать заново")
+        }
+    }
+}
