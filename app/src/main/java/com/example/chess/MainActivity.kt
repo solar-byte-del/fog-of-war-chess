@@ -36,7 +36,10 @@ fun MainNavigation() {
     var difficulty by remember { mutableStateOf(BotDifficulty.EASY) }
 
     when (currentMode) {
-        GameMode.MENU -> MenuScreen(onModeSelect = { mode, diff -> difficulty = diff; currentMode = mode })
+        GameMode.MENU -> MenuScreen(onModeSelect = { mode, diff -> 
+            difficulty = diff
+            currentMode = mode 
+        })
         GameMode.PVP -> GameScreen(isBotMode = false, difficulty = difficulty, onBackToMenu = { currentMode = GameMode.MENU })
         GameMode.BOT -> GameScreen(isBotMode = true, difficulty = difficulty, onBackToMenu = { currentMode = GameMode.MENU })
     }
@@ -44,14 +47,29 @@ fun MainNavigation() {
 
 @Composable
 fun MenuScreen(onModeSelect: (GameMode, BotDifficulty) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp), 
+        horizontalAlignment = Alignment.CenterHorizontally, 
+        verticalArrangement = Arrangement.Center
+    ) {
         Text("Шахматы: Туман Войны", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 32.dp))
-        Button(onClick = { onModeSelect(GameMode.PVP, BotDifficulty.EASY) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { Text("Играть вдвоем (PvP)", fontSize = 16.sp) }
+        
+        Button(onClick = { onModeSelect(GameMode.PVP, BotDifficulty.EASY) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { 
+            Text("Играть вдвоем (PvP)", fontSize = 16.sp) 
+        }
+        
         Spacer(modifier = Modifier.height(24.dp))
         Text("Режим против БОТА:", color = Color.Gray, fontSize = 15.sp, modifier = Modifier.padding(bottom = 8.dp))
-        Button(onClick = { onModeSelect(GameMode.BOT, BotDifficulty.EASY) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { Text("Бот: Легкий", fontSize = 16.sp) }
-        Button(onClick = { onModeSelect(GameMode.BOT, BotDifficulty.MEDIUM) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { Text("Бот: Средний", fontSize = 16.sp) }
-        Button(onClick = { onModeSelect(GameMode.BOT, BotDifficulty.HARD) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { Text("Бот: 🔥 СЛОЖНЫЙ", fontSize = 16.sp, color = Color(0xFFFFD700)) }
+        
+        Button(onClick = { onModeSelect(GameMode.BOT, BotDifficulty.EASY) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { 
+            Text("Бот: Легкий", fontSize = 16.sp) 
+        }
+        Button(onClick = { onModeSelect(GameMode.BOT, BotDifficulty.MEDIUM) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { 
+            Text("Бот: Средний", fontSize = 16.sp) 
+        }
+        Button(onClick = { onModeSelect(GameMode.BOT, BotDifficulty.HARD) }, modifier = Modifier.fillMaxWidth().height(55.dp).padding(vertical = 4.dp)) { 
+            Text("Бот: 🔥 СЛОЖНЫЙ", fontSize = 16.sp, color = Color(0xFFFFD700)) 
+        }
     }
 }
 
@@ -61,8 +79,7 @@ fun GameScreen(isBotMode: Boolean, difficulty: BotDifficulty, onBackToMenu: () -
     var turn by remember { mutableStateOf(PieceColor.WHITE) }
     var selectedPosition by remember { mutableStateOf<Position?>(null) }
     
-    // Состояния для диалога выбора превращения пешки
-    var pawnPromotionPending by remember { mutableStateOf<Pair<Position, Position>?>(null) } // Откуда -> Куда
+    var pawnPromotionPending by remember { mutableStateOf<Pair<Position, Position>?>(null) }
     var showPromotionDialog by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
@@ -79,7 +96,6 @@ fun GameScreen(isBotMode: Boolean, difficulty: BotDifficulty, onBackToMenu: () -
         emptyList()
     }
 
-    // Ход сложного или простого бота
     if (isBotMode && turn == PieceColor.BLACK && !isGameOver) {
         LaunchedEffect(turn) {
             coroutineScope.launch {
@@ -107,7 +123,6 @@ fun GameScreen(isBotMode: Boolean, difficulty: BotDifficulty, onBackToMenu: () -
             )
         }
 
-        // Шахматная доска
         Column(modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Color.Black)) {
             for (row in 0..7) {
                 Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -126,31 +141,36 @@ fun GameScreen(isBotMode: Boolean, difficulty: BotDifficulty, onBackToMenu: () -
                             else -> baseColor
                         }
 
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight().background(cellColor).clickable {
-                            if (!isGameOver && (turn == PieceColor.WHITE || !isBotMode)) {
-                                if (isPossibleTarget && selectedPosition != null) {
-                                    val movingPiece = board[selectedPosition!!]!!
-                                    
-                                    // Проверка условия превращения пешки (строка 0 для белых, строка 7 для черных в PvP)
-                                    val isPromotion = movingPiece.type == PieceType.PAWN && (currentPos.row == 0 || currentPos.row == 7)
-                                    
-                                    if (isPromotion) {
-                                        pawnPromotionPending = Pair(selectedPosition!!, currentPos)
-                                        showPromotionDialog = true
+                        Box(modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(cellColor)
+                            .clickable {
+                                if (!isGameOver && (turn == PieceColor.WHITE || !isBotMode)) {
+                                    if (isPossibleTarget && selectedPosition != null) {
+                                        val movingPiece = board[selectedPosition!!]!!
+                                        val isPromotion = movingPiece.type == PieceType.PAWN && (currentPos.row == 0 || currentPos.row == 7)
+                                        
+                                        if (isPromotion) {
+                                            pawnPromotionPending = Pair(selectedPosition!!, currentPos)
+                                            showPromotionDialog = true
+                                        } else {
+                                            val newBoard = board.toMutableMap()
+                                            newBoard[currentPos] = movingPiece
+                                            newBoard.remove(selectedPosition!!)
+                                            board = newBoard
+                                            selectedPosition = null
+                                            turn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE
+                                        }
+                                    } else if (piece != null && piece.color == turn) {
+                                        selectedPosition = currentPos
                                     } else {
-                                        // Обычный ход
-                                        val newBoard = board.toMutableMap()
-                                        newBoard[currentPos] = movingPiece
-                                        newBoard.remove(selectedPosition!!)
-                                        board = newBoard
                                         selectedPosition = null
-                                        turn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE
                                     }
-                                } else if (piece != null && piece.color == turn) {
-                                    selectedPosition = currentPos
-                                } else { selectedPosition = null }
-                            }
-                        }, contentAlignment = Alignment.Center) {
+                                }
+                            }, 
+                            contentAlignment = Alignment.Center
+                        ) {
                             if (piece != null) {
                                 Text(text = piece.getSymbol(), fontSize = 32.sp, color = if (piece.color == PieceColor.WHITE) Color.White else Color.Black)
                             } else if (isPossibleTarget && isVisible) {
@@ -163,7 +183,14 @@ fun GameScreen(isBotMode: Boolean, difficulty: BotDifficulty, onBackToMenu: () -
         }
 
         if (isGameOver) {
-            Button(onClick = { board = createInitialBoard(); turn = PieceColor.WHITE; selectedPosition = null }, modifier = Modifier.padding(top = 24.dp)) {
+            Button(
+                onClick = { 
+                    board = createInitialBoard()
+                    turn = PieceColor.WHITE
+                    selectedPosition = null 
+                }, 
+                modifier = Modifier.padding(top = 24.dp)
+            ) {
                 Text("Играть снова")
             }
         } else {
@@ -171,7 +198,6 @@ fun GameScreen(isBotMode: Boolean, difficulty: BotDifficulty, onBackToMenu: () -
         }
     }
 
-    // Всплывающее окно выбора фигуры при превращении пешки
     if (showPromotionDialog && pawnPromotionPending != null) {
         AlertDialog(
             onDismissRequest = { },
@@ -183,9 +209,4 @@ fun GameScreen(isBotMode: Boolean, difficulty: BotDifficulty, onBackToMenu: () -
                     val to = pawnPromotionPending!!.second
                     val newBoard = board.toMutableMap()
                     newBoard[to] = ChessPiece(PieceType.QUEEN, turn)
-                    newBoard.remove(from)
-                    board = newBoard
-                    showPromotionDialog = false
-                    pawnPromotionPending = null
-                    selectedPosition = null
-turn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE}) { Text("Ферзь (♛)") }},dismissButton = {Button(onClick = {val from = pawnPromotionPending!!.firstval to = pawnPromotionPending!!.secondval newBoard = board.toMutableMap()newBoard[to] = ChessPiece(PieceType.KNIGHT, turn)newBoard.remove(from)board = newBoardshowPromotionDialog = falsepawnPromotionPending = nullselectedPosition = nullturn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE}) { Text("Конь (♞)") }})}}
+newBoard.remove(from)board = newBoardshowPromotionDialog = falsepawnPromotionPending = nullselectedPosition = nullturn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE}) { Text("Ферзь (♛)") }},dismissButton = {Button(onClick = {val from = pawnPromotionPending!!.firstval to = pawnPromotionPending!!.secondval newBoard = board.toMutableMap()newBoard[to] = ChessPiece(PieceType.KNIGHT, turn)newBoard.remove(from)board = newBoardshowPromotionDialog = falsepawnPromotionPending = nullselectedPosition = nullturn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE}) { Text("Конь (♞)") }})}}
