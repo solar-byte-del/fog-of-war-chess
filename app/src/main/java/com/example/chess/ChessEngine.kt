@@ -3,7 +3,9 @@ package com.example.chess
 enum class PieceColor { WHITE, BLACK }
 enum class PieceType { PAWN, ROOK, KNIGHT, BISHOP, QUEEN, KING }
 enum class GameMode { MENU, PVP, BOT }
-enum class BotDifficulty { EASY, MEDIUM }
+
+// Добавили HARD в список, чтобы ChessLogic.kt видел сложный режим
+enum class BotDifficulty { EASY, MEDIUM, HARD }
 
 data class Position(val row: Int, val col: Int)
 
