@@ -1,7 +1,6 @@
 package com.example.chess
 
 import kotlin.random.Random
-import kotlin.math.max
 
 fun getValidMoves(pos: Position, piece: ChessPiece, board: Board): List<Position> {
     val moves = mutableListOf<Position>()
@@ -86,20 +85,18 @@ fun getVisibleSquares(color: PieceColor, board: Board): Set<Position> {
     return visible
 }
 
-// Проверка: Жив ли еще король конкретного цвета
 fun isKingAlive(color: PieceColor, board: Board): Boolean {
     return board.values.any { it.type == PieceType.KING && it.color == color }
 }
 
-// Оценка ценности фигуры для сложного ИИ
 fun getPieceValue(type: PieceType): Int {
     return when (type) {
         PieceType.PAWN -> 10
-        PieceType.KNIGHT -> 30
-        PieceType.BISHOP -> 30
+        PieceType.KNIGHT -> 35
+        PieceType.BISHOP -> 35
         PieceType.ROOK -> 50
-        PieceType.QUEEN -> 90
-        PieceType.KING -> 9000
+        PieceType.QUEEN -> 95
+        PieceType.KING -> 99999
     }
 }
 
@@ -130,11 +127,10 @@ fun makeBotMove(board: Board, difficulty: BotDifficulty): Board {
         }
         
         BotDifficulty.HARD -> {
-            // СЛОЖНЫЙ РЕЖИМ: Оценка позиции на основе видимых данных
             var bestScore = -999999
             val bestMoves = mutableListOf<Pair<Position, Position>>()
             
-            // Вычисляем клетки, которые игрок держит под ударом (из тех, что бот видит)
+            // Находим все ВИДИМЫЕ боту фигуры игрока
             val enemyVisiblePieces = board.filter { it.value.color == PieceColor.WHITE && visibleSquares.contains(it.key) }
             val squaresUnderAttackByEnemy = mutableSetOf<Position>()
             for ((ePos, ePiece) in enemyVisiblePieces) {
@@ -149,29 +145,39 @@ fun makeBotMove(board: Board, difficulty: BotDifficulty): Board {
                 
                 var score = 0
                 
-                // 1. Приоритет №1: Если видим короля игрока — немедленно атакуем и побеждаем!
-                if (targetPiece != null && targetPiece.type == PieceType.KING) {
-                    score += 100000
-                }
+                // 1. Абсолютный приоритет: Взятие короля
+                if (targetPiece != null && targetPiece.type == PieceType.KING) score += 500000
                 
-                // 2. Ценность взятия обычной фигуры
+                // 2. Взятие обычной видимой фигуры
                 if (targetPiece != null && visibleSquares.contains(target)) {
-                    score += getPieceValue(targetPiece.type) * 2
+                    score += getPieceValue(targetPiece.type) * 3
                 }
                 
-                // 3. Защита: Если наша фигура стояла под боем врага, увод её из-под удара дает бонус
+                // 3. Увод своей фигуры из-под удара врага
                 if (squaresUnderAttackByEnemy.contains(start)) {
-                    score += getPieceValue(movingPiece.type)
+                    score += getPieceValue(movingPiece.type) * 2
                 }
                 
-                // 4. Опасность: Если мы ходим на клетку под ударом врага, вычитаем ценность нашей фигуры
+                // 4. Штраф за глупый ход под удар врага
                 if (squaresUnderAttackByEnemy.contains(target)) {
-                    score -= getPieceValue(movingPiece.type)
+                    score -= getPieceValue(movingPiece.type) * 2
                 }
                 
-                // 5. Движение пешек к превращению
-                if (movingPiece.type == PieceType.PAWN && target.row == 7) {
-                    score += 80 // Бонус за скорое превращение в Ферзя
+                // 5. ДВИЖОК ЭКСПЛУАТАЦИИ ТУМАНА (Стратегия наступления):
+                // Чем ближе фигура продвигается к центру и к базовому лагерю Белых (строки 6 и 7),
+                // тем выше бонус. Бот начинает целенаправленно давить вас числом и идти на сближение.
+                if (movingPiece.type != PieceType.KING) {
+                    score += target.row * 2 
+                }
+                
+                // 6. Контроль центра поля (бонус за вывод коней и слонов на активные позиции)
+                if (target.col in 2..5 && target.row in 2..5) {
+                    score += 5
+                }
+                
+                // 7. Защита короля: штраф, если черный король пытается неоправданно гулять по доске
+                if (movingPiece.type == PieceType.KING && target.row > 1) {
+                    score -= 50
                 }
 
                 if (score > bestScore) {
@@ -189,7 +195,6 @@ fun makeBotMove(board: Board, difficulty: BotDifficulty): Board {
     val newBoard = board.toMutableMap()
     val pieceToMove = newBoard[selectedMove.first]
     if (pieceToMove != null) {
-        // Логика авто-превращения пешки бота в Ферзя на последней горизонтали
         if (pieceToMove.type == PieceType.PAWN && selectedMove.second.row == 7) {
             newBoard[selectedMove.second] = ChessPiece(PieceType.QUEEN, botColor)
         } else {
