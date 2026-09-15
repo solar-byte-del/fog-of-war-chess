@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -13,269 +15,244 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 
-// --- DATA STRUCTURES ---
-
-enum class PieceType { PAWN, ROOK, KNIGHT, BISHOP, QUEEN, KING }
+// --- МОДЕЛЬ ДАННЫХ ---
 enum class PieceColor { WHITE, BLACK }
+enum class PieceType { PAWN, ROOK, KNIGHT, BISHOP, QUEEN, KING }
+
+data class Position(val row: Int, val col: Int)
 
 data class ChessPiece(
     val type: PieceType,
     val color: PieceColor
-)
-
-data class Position(val row: Int, val col: Int)
+) {
+    fun getSymbol(): String {
+        return when (color) {
+            PieceColor.WHITE -> when (type) {
+                PieceType.PAWN -> "♙"
+                PieceType.ROOK -> "♖"
+                PieceType.KNIGHT -> "♘"
+                PieceType.BISHOP -> "♗"
+                PieceType.QUEEN -> "♕"
+                PieceType.KING -> "♔"
+            }
+            PieceColor.BLACK -> when (type) {
+                PieceType.PAWN -> "♟"
+                PieceType.ROOK -> "♜"
+                PieceType.KNIGHT -> "♞"
+                PieceType.BISHOP -> "♝"
+                PieceType.QUEEN -> "♛"
+                PieceType.KING -> "♚"
+            }
+        }
+    }
+}
 
 typealias Board = Map<Position, ChessPiece>
 
-// --- GAME LOGIC ---
+// --- ГЛАВНАЯ АКТИВНОСТЬ ---
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color(0xFF121212)
+                ) {
+                    GameScreen()
+                }
+            }
+        }
+    }
+}
 
-fun getInitialBoard(): Board {
-    val board = mutableMapOf<Position, ChessPiece>()
+// --- ЛОГИКА ИГРЫ ---
+fun createInitialBoard(): Board {
+    val b = mutableMapOf<Position, ChessPiece>()
     
-    val backRow = listOf(
-        PieceType.ROOK, PieceType.KNIGHT, PieceType.BISHOP, PieceType.QUEEN,
-        PieceType.KING, PieceType.BISHOP, PieceType.KNIGHT, PieceType.ROOK
-    )
-    
-    // Black pieces (Rows 0 and 1)
-    for (col in 0..7) {
-        board[Position(0, col)] = ChessPiece(backRow[col], PieceColor.BLACK)
-        board[Position(1, col)] = ChessPiece(PieceType.PAWN, PieceColor.BLACK)
-    }
-    
-    // White pieces (Rows 6 and 7)
-    for (col in 0..7) {
-        board[Position(6, col)] = ChessPiece(PieceType.PAWN, PieceColor.WHITE)
-        board[Position(7, col)] = ChessPiece(backRow[col], PieceColor.WHITE)
-    }
-    
-    return board
+    // Черные фигуры
+    b[Position(0, 0)] = ChessPiece(PieceType.ROOK, PieceColor.BLACK)
+    b[Position(0, 1)] = ChessPiece(PieceType.KNIGHT, PieceColor.BLACK)
+    b[Position(0, 2)] = ChessPiece(PieceType.BISHOP, PieceColor.BLACK)
+    b[Position(0, 3)] = ChessPiece(PieceType.QUEEN, PieceColor.BLACK)
+    b[Position(0, 4)] = ChessPiece(PieceType.KING, PieceColor.BLACK)
+    b[Position(0, 5)] = ChessPiece(PieceType.BISHOP, PieceColor.BLACK)
+    b[Position(0, 6)] = ChessPiece(PieceType.KNIGHT, PieceColor.BLACK)
+    b[Position(0, 7)] = ChessPiece(PieceType.ROOK, PieceColor.BLACK)
+    for (i in 0..7) b[Position(1, i)] = ChessPiece(PieceType.PAWN, PieceColor.BLACK)
+
+    // Белые фигуры
+    for (i in 0..7) b[Position(6, i)] = ChessPiece(PieceType.PAWN, PieceColor.WHITE)
+    b[Position(7, 0)] = ChessPiece(PieceType.ROOK, PieceColor.WHITE)
+    b[Position(7, 1)] = ChessPiece(PieceType.KNIGHT, PieceColor.WHITE)
+    b[Position(7, 2)] = ChessPiece(PieceType.BISHOP, PieceColor.WHITE)
+    b[Position(7, 3)] = ChessPiece(PieceType.QUEEN, PieceColor.WHITE)
+    b[Position(7, 4)] = ChessPiece(PieceType.KING, PieceColor.WHITE)
+    b[Position(7, 5)] = ChessPiece(PieceType.BISHOP, PieceColor.WHITE)
+    b[Position(7, 6)] = ChessPiece(PieceType.KNIGHT, PieceColor.WHITE)
+    b[Position(7, 7)] = ChessPiece(PieceType.ROOK, PieceColor.WHITE)
+
+    return b
 }
 
 fun getValidMoves(pos: Position, piece: ChessPiece, board: Board): List<Position> {
     val moves = mutableListOf<Position>()
-    val deltaRow = if (piece.color == PieceColor.WHITE) -1 else 1
-    val startRow = if (piece.color == PieceColor.WHITE) 6 else 1
-    
+    val row = pos.row
+    val col = pos.col
+    val direction = if (piece.color == PieceColor.WHITE) -1 else 1
+
     when (piece.type) {
         PieceType.PAWN -> {
-            // One step forward
-            val nextPos = Position(pos.row + deltaRow, pos.col)
-            if (nextPos.row in 0..7 && board[nextPos] == null) {
-                moves.add(nextPos)
-                // Two steps from initial position
-                val doublePos = Position(pos.row + 2 * deltaRow, pos.col)
-                if (pos.row == startRow && board[doublePos] == null) {
-                    moves.add(doublePos)
+            val f1 = Position(row + direction, col)
+            if (f1.row in 0..7 && board[f1] == null) {
+                moves.add(f1)
+                val f2 = Position(row + 2 * direction, col)
+                if (((piece.color == PieceColor.WHITE && row == 6) || (piece.color == PieceColor.BLACK && row == 1)) && board[f2] == null) {
+                    moves.add(f2)
                 }
             }
-            // Captures
+            // Атаки пешки
             for (dc in listOf(-1, 1)) {
-                val capPos = Position(pos.row + deltaRow, pos.col + dc)
-                if (capPos.row in 0..7 && capPos.col in 0..7) {
-                    val target = board[capPos]
-                    if (target != null && target.color != piece.color) {
-                        moves.add(capPos)
+                val target = Position(row + direction, col + dc)
+                if (target.row in 0..7 && target.col in 0..7) {
+                    val p = board[target]
+                    if (p != null && p.color != piece.color) {
+                        moves.add(target)
                     }
                 }
             }
         }
         PieceType.KNIGHT -> {
             val offsets = listOf(
-                -2 to -1, -2 to 1, -1 to -2, -1 to 2,
-                1 to -2, 1 to 2, 2 to -1, 2 to 1
+                Pair(-2, -1), Pair(-2, 1), Pair(-1, -2), Pair(-1, 2),
+                Pair(1, -2), Pair(1, 2), Pair(2, -1), Pair(2, 1)
             )
-            for ((dr, dc) in offsets) {
-                val target = Position(pos.row + dr, pos.col + dc)
+            for (o in offsets) {
+                val target = Position(row + o.first, col + o.second)
                 if (target.row in 0..7 && target.col in 0..7) {
-                    if (board[target]?.color != piece.color) {
-                        moves.add(target)
-                    }
+                    val p = board[target]
+                    if (p == null || p.color != piece.color) moves.add(target)
                 }
             }
         }
-        PieceType.BISHOP -> addSlidingMoves(pos, piece.color, board, listOf(-1 to -1, -1 to 1, 1 to -1, 1 to 1), moves)
-        PieceType.ROOK -> addSlidingMoves(pos, piece.color, board, listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1), moves)
-        PieceType.QUEEN -> addSlidingMoves(pos, piece.color, board, listOf(-1 to -1, -1 to 1, 1 to -1, 1 to 1, -1 to 0, 1 to 0, 0 to -1, 0 to 1), moves)
         PieceType.KING -> {
             for (dr in -1..1) {
                 for (dc in -1..1) {
                     if (dr == 0 && dc == 0) continue
-                    val target = Position(pos.row + dr, pos.col + dc)
+                    val target = Position(row + dr, col + dc)
                     if (target.row in 0..7 && target.col in 0..7) {
-                        if (board[target]?.color != piece.color) {
-                            moves.add(target)
-                        }
+                        val p = board[target]
+                        if (p == null || p.color != piece.color) moves.add(target)
                     }
                 }
             }
         }
+        PieceType.ROOK -> addLinearMoves(pos, piece.color, board, moves, listOf(Pair(-1, 0), Pair(1, 0), Pair(0, -1), Pair(0, 1)))
+        PieceType.BISHOP -> addLinearMoves(pos, piece.color, board, moves, listOf(Pair(-1, -1), Pair(-1, 1), Pair(1, -1), Pair(1, 1)))
+        PieceType.QUEEN -> addLinearMoves(pos, piece.color, board, moves, listOf(Pair(-1, 0), Pair(1, 0), Pair(0, -1), Pair(0, 1), Pair(-1, -1), Pair(-1, 1), Pair(1, -1), Pair(1, 1)))
     }
     return moves
 }
 
-private fun addSlidingMoves(
-    pos: Position,
-    color: PieceColor,
-    board: Board,
-    directions: List<Pair<Int, Int>>,
-    moves: MutableList<Position>
-) {
-    for ((dr, dc) in directions) {
-        var r = pos.row + dr
-        var c = pos.col + dc
-        while (r in 0..7 && c in 0..7) {
-            val target = Position(r, c)
-            val piece = board[target]
-            if (piece == null) {
+fun addLinearMoves(pos: Position, color: PieceColor, board: Board, moves: MutableList<Position>, dirs: List<Pair<Int, Int>>) {
+    for (d in dirs) {
+        var currRow = pos.row + d.first
+        var currCol = pos.col + d.second
+        while (currRow in 0..7 && currCol in 0..7) {
+            val target = Position(currRow, currCol)
+            val p = board[target]
+            if (p == null) {
                 moves.add(target)
             } else {
-                if (piece.color != color) {
-                    moves.add(target)
-                }
+                if (p.color != color) moves.add(target)
                 break
             }
-            r += dr
-            c += dc
+            currRow += d.first
+            currCol += d.second
         }
     }
 }
 
-// Compute all squares visible to a given player based on their pieces' moves and positions
 fun getVisibleSquares(color: PieceColor, board: Board): Set<Position> {
     val visible = mutableSetOf<Position>()
     for ((pos, piece) in board) {
         if (piece.color == color) {
-            visible.add(pos) // Own pieces are always visible
-            visible.addAll(getValidMoves(pos, piece, board)) // Squares they can move to are visible
+            visible.add(pos)
+            visible.addAll(getValidMoves(pos, piece, board))
         }
     }
     return visible
 }
 
-// --- UI COMPONENTS ---
-
-class MainActivity : ComponentActivity() {
-    override class onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF1E1E1E)) {
-                    ChessGameScreen()
-                }
-            }
-        }
-    }
-}
-
+// --- ИНТЕРФЕЙС ЭКРАНА ---
 @Composable
-fun ChessGameScreen() {
-    var board by remember { mutableStateOf(getInitialBoard()) }
+fun GameScreen() {
+    var board by remember { mutableStateOf(createInitialBoard()) }
     var turn by remember { mutableStateOf(PieceColor.WHITE) }
     var selectedPosition by remember { mutableStateOf<Position?>(null) }
-    
-    val visibleSquares = remember(board, turn) { getVisibleSquares(turn, board) }
-    val activeValidMoves = remember(selectedPosition, board) {
-        selectedPosition?.let { pos ->
-            board[pos]?.let { piece ->
-                getValidMoves(pos, piece, board)
-            }
-        } ?: emptyList()
+
+    val visibleSquares = getVisibleSquares(turn, board)
+    val activePiece = selectedPosition?.let { board[it] }
+    val possibleMoves = if (activePiece != null && activePiece.color == turn) {
+        getValidMoves(selectedPosition!!, activePiece, board)
+    } else {
+        emptyList()
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Ход: ${if (turn == PieceColor.WHITE) "Белые" else "Черные"}",
+            text = if (turn == PieceColor.WHITE) "Ход Белых" else "Ход Черных",
             color = Color.White,
-            fontSize = 24,
-            modifier = Modifier.padding(16.dp)
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Chessboard Layout
+        // Шахматная доска
         Column(
             modifier = Modifier
-                .size(360.dp)
-                .background(Color.DarkGray)
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .background(Color.Black)
         ) {
             for (row in 0..7) {
-                Row(modifier = Modifier.weight(1f)) {
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     for (col in 0..7) {
                         val currentPos = Position(row, col)
                         val isVisible = visibleSquares.contains(currentPos)
                         val piece = if (isVisible) board[currentPos] else null
-                        
+
                         val isSelected = selectedPosition == currentPos
-                        val isValidMoveTarget = activeValidMoves.contains(currentPos)
-                        
-                        // Base cell coloring
-                        val isDarkSquare = (row + col) % 2 == 1
-                        var baseColor = if (isDarkSquare) Color(0xFF769656) else Color(0xFFEEEEEE)
-                        
-                        // Apply Fog of War tinting if not visible
-                        if (!isVisible) {
-                            baseColor = Color(0xFF2B2B2B)
-                        } else if (isSelected) {
-                            baseColor = Color(0xFFF7EC7D)
-                        } else if (isValidMoveTarget) {
-                            baseColor = Color(0xFFBACA44)
+                        val isPossibleTarget = possibleMoves.contains(currentPos)
+
+                        // Определение цвета клетки доски
+                        val baseColor = if (!isVisible) {
+                            Color(0xFF222222) // Туман войны
+                        } else if ((row + col) % 2 == 0) {
+                            Color(0xFFEEEEEE) // Светлая клетка
+                        } else {
+                            Color(0xFF769656) // Темная клетка
+                        }
+
+                        val cellColor = when {
+                            isSelected -> Color(0xFFF7EC74)
+                            isPossibleTarget && piece != null -> Color(0xFFE25B5B)
+                            isPossibleTarget -> Color(0xFFBAC94A)
+                            else -> baseColor
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .background(baseColor)
+                                .background(cellColor)
                                 .clickable {
-                                    if (isValidMoveTarget && selectedPosition != null) {
-                                        // Execute move
-                                        val newBoard = board.toMutableMap()
-                                        val movingPiece = newBoard.remove(selectedPosition!!)
-                                        if (movingPiece != null) {
-                                            newBoard[currentPos] = movingPiece
-                                        }
-                                        board = newBoard
-                                        selectedPosition = null
-                                        turn = if (turn == PieceColor.WHITE) PieceColor.BLACK else PieceColor.WHITE
-                                    } else if (isVisible && piece != null && piece.color == turn) {
-                                        // Select piece
-                                        selectedPosition = if (isSelected) null else currentPos
-                                    } else {
-                                        // Clicked empty or fogged cell without valid actions
-                                        selectedPosition = null
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isVisible && piece != null) {
-                                Text(
-                                    text = getPieceSymbol(piece),
-                                    fontSize = 28.sp,
-                                    color = if (piece.color == PieceColor.WHITE) Color.White else Color.Black
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fun getPieceSymbol(piece: ChessPiece): String {
-    return when (piece.type) {
-        PieceType.PAWN -> "♙"
-        PieceType.ROOK -> "♖"
-        PieceType.KNIGHT -> "♘"
-        PieceType.BISHOP -> "♗"
-        PieceType.QUEEN -> "♕"
-        PieceType.KING -> "♔"
-    }
-}
